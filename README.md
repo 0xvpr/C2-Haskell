@@ -6,11 +6,15 @@ A Simple C2 interface build with Haskell 2010
 
 ### Build
 ```bash
-# some other commands
+cabal sandbox init
 cabal install -j
+```
+
+### Run
+```bash
+./.cabal-sandbox/bin/c2-haskell
 ```
 
 #### TODO
 - [ ] Demonstration
-- [ ] Build instructions
-- [ ] Implementation POC
+- [x] Build instructions
