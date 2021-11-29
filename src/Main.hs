@@ -1,3 +1,13 @@
+{--
+ - Creator: VPR
+ - Created: November 28, 2021
+ - Updated: November 29, 2021
+ -
+ - Description:
+ -     A Command & Control interface that establishes a client/server model
+ -     that uses TCP sockets.
+--}
+
 module Main where
 
 import System.IO
