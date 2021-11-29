@@ -1,2 +1,2 @@
-# Haskell C2 Infrastructure
+# Command & Control Server (Haskell)
 TODO
