@@ -25,7 +25,7 @@ main = do
     listen sock 2
 
     -- Initial Message (un-hardcode this)
-    putStrLn ("[!] Listening on port: localhost:8001")
+    putStrLn ("[!] Listening on localhost:8001")
 
     chan <- newChan
     _ <- forkIO $ fix $ \loop -> do

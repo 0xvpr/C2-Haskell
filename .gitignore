@@ -100,3 +100,13 @@ cabal.project.local~
 .ghc.environment.*
 
 # End of https://www.toptal.com/developers/gitignore/api/haskell,c,c++
+
+### My Ignores ###
+# Folders
+bin
+
+# Compiled Files
+bin/c2-haskell
+
+# Scripts
+build.sh
