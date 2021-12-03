@@ -10,68 +10,47 @@
 
 module Main where
 
-import System.IO
+import Control.Concurrent (forkFinally)
+import Control.Monad (unless, forever, void)
 import Network.Socket
-import Control.Exception
-import Control.Concurrent
-import Control.Monad (when)
-import Control.Monad.Fix (fix)
+import Network.Socket.ByteString (recv, sendAll)
+import Control.Exception as E
+import Data.ByteString as B
+import Data.Binary
+import Data.Maybe
 
 main :: IO ()
-main = do
-    sock <- socket AF_INET Stream 0
-    setSocketOption sock ReuseAddr 1
-    bind sock (SockAddrInet 8001 0)
-    listen sock 2
+main = runTCPServer Nothing "9001" mainLoop
 
-    -- Initial Message (un-hardcode this)
-    putStrLn ("[!] Listening on localhost:8001")
+mainLoop :: Socket -> IO ()
+mainLoop clientSock = do
+    recv_buffer <- recv clientSock 4096
+    print recv_buffer
+    unless (B.null recv_buffer) $ do
+        sendAll clientSock recv_buffer
+        mainLoop clientSock
 
-    chan <- newChan
-    _ <- forkIO $ fix $ \loop -> do
-      (_, _) <- readChan chan
-      loop
-    mainLoop sock chan 0
+runTCPServer :: Maybe HostName -> ServiceName -> (Socket -> IO ()) -> IO ()
+runTCPServer mhost port server = withSocketsDo $ do
+    addr <- resolve
+    E.bracket (open addr) close loop
 
-type Msg = (Int, String)
+    where
+    resolve = do
+        let hints = defaultHints {
+            addrFlags = [AI_PASSIVE],
+            addrSocketType = Stream
+        }
+        Prelude.head <$> getAddrInfo (Just hints) mhost (Just port)
 
-mainLoop :: Socket -> Chan Msg -> Int -> IO ()
-mainLoop sock chan msgNum = do
-    conn <- accept sock
-    forkIO (runConn conn chan msgNum)
-    mainLoop sock chan $! msgNum + 1
+    open addr = E.bracketOnError (openSocket addr) close $ \sock -> do
+        setSocketOption sock ReuseAddr 1
+        withFdSocket sock setCloseOnExecIfNeeded
+        
+        bind sock $ addrAddress addr
+        listen sock 4096
+        return sock
 
-runConn :: (Socket, SockAddr) -> Chan Msg -> Int -> IO ()
-runConn (sock, _) chan msgNum = do
-    let broadcast msg = writeChan chan (msgNum, msg)
-    hdl <- socketToHandle sock ReadWriteMode
-    hSetBuffering hdl NoBuffering
-
-    -- Debug
-    putStrLn ("[+] Bot connected.")
-    putStr (":> ")
-    recvBuffer <- fmap init (hGetLine hdl)
-    putStrLn ("Data: " ++ recvBuffer ++ " recieved.")
-    putStr (":> ")
-
-    commLine <- dupChan chan
-
-    -- fork off a thread for reading from the duplicated channel
-    reader <- forkIO $ fix $ \loop -> do
-        (nextNum, line) <- readChan commLine
-        when (msgNum /= nextNum) $ hPutStrLn hdl line
-        loop
-
-    handle (\(SomeException _) -> return ()) $ fix $ \loop -> do
-        line <- fmap init (hGetLine hdl)
-        case line of
-             -- Issue a command to get the username of the target
-             "whoami" -> putStrLn "whoami" >> loop
-             -- Issue a command to terminate the bot
-             "shutdown" -> putStrLn "shutdown"
-             -- else, continue looping.
-             _      -> broadcast (recvBuffer ++ ": " ++ line) >> loop
-
-    killThread reader                      -- kill after the loop ends
-    broadcast ("[-] " ++ recvBuffer ++ " executed?") -- make a final broadcast
-    hClose hdl                             -- close the handle
+    loop sock = forever $ E.bracketOnError (accept sock) (close . fst)
+        $ \(conn, _peer) -> void $
+            forkFinally (server conn) (const $ gracefulClose conn 5000)

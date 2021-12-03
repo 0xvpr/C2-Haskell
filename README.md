@@ -1,5 +1,5 @@
 # Command & Control Server (Haskell)
-A Simple C2 interface build with Haskell 2010
+A Simple C2 interface build with Haskell
 
 ### Demonstration
 [ add video demo ]
@@ -16,4 +16,8 @@ cabal install -j --installdir=bin --install-method=copy
 
 #### TODO
 - [ ] Demonstration
+- [ ] Send commands
+- [ ] Support multiple connections
+- [ ] Cycle between connections
 - [x] Build instructions
+- [x] Receive commands
